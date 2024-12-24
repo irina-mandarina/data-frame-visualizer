@@ -44,6 +44,7 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 addActionListener { loadData() }
             })
 
+            // controls for searching by value
             add(JLabel("Search:"))
             add(JTextField(20).apply {
                 addKeyListener(object : java.awt.event.KeyAdapter() {
@@ -52,6 +53,28 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                     }
                 })
             })
+
+            // controls for sorting by column on each column header
+            table.tableHeader.addMouseListener(object : java.awt.event.MouseAdapter() {
+                override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                    val column = table.columnModel.getColumnIndexAtX(e.x)
+                    // toggle sorting direction or remove sorting
+                    val sortKeys = rowSorter.sortKeys.toMutableList()
+                    val existingKey = sortKeys.find { it.column == column }
+                    if (existingKey != null) {
+                        sortKeys.remove(existingKey)
+                        when (existingKey.sortOrder) {
+                            SortOrder.ASCENDING -> sortKeys.add(RowSorter.SortKey(column, SortOrder.DESCENDING))
+                            SortOrder.DESCENDING -> { /* Do nothing, key is already removed */ }
+                            else -> sortKeys.add(RowSorter.SortKey(column, SortOrder.ASCENDING))
+                        }
+                    } else {
+                        sortKeys.add(RowSorter.SortKey(column, SortOrder.ASCENDING))
+                    }
+                    rowSorter.sortKeys = sortKeys
+                }
+            })
+
         }
     }
 
@@ -74,8 +97,10 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
         }
     }
 
+    // multiple files can be chosen. if the headers do not match, visualizing the first file only.
     private fun loadData() {
         val fileChooser = JFileChooser().apply {
+            isMultiSelectionEnabled = true
             fileFilter = FileNameExtensionFilter(
                 "Supported Files", "csv", "json", "xlsx", "db"
             )
@@ -83,17 +108,29 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
 
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
-                val file = fileChooser.selectedFile
-                val data = when (file.extension.lowercase()) {
-                    "csv" -> loader.loadCSV(file)
-                    "json" -> loader.loadJSON(file)
-                    "xlsx" -> loader.loadExcel(file)
-                    "db" -> loader.loadDatabase(file)
-                    else -> throw IllegalArgumentException("Unsupported file format")
+                val files = fileChooser.selectedFiles
+                if (files.isEmpty()) return
+
+                val dataFrames = files.map { file ->
+                    when (file.extension.lowercase()) {
+                        "csv" -> loader.loadCSV(file)
+                        "json" -> loader.loadJSON(file)
+                        "xlsx" -> loader.loadExcel(file)
+                        "db" -> loader.loadDatabase(file)
+                        else -> throw IllegalArgumentException("Unsupported file format")
+                    }
                 }
-                updateTable(data)
+
+                val headers = dataFrames.first().columns
+                if (dataFrames.all { it.columns.contentEquals(headers) }) {
+                    val combinedRows = dataFrames.flatMap { it.rows }
+                    updateTable(DataFrameData(headers, combinedRows))
+                } else {
+                    showError("Headers do not match across files. Displaying the first file only.")
+                    updateTable(dataFrames.first())
+                }
             } catch (e: Exception) {
-                showError("Error loading file: ${e.message}")
+                showError("Error loading files: ${e.message}")
                 println(e)
             }
         }
