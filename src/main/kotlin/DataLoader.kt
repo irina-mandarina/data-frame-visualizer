@@ -28,9 +28,9 @@ class DataLoader {
         val sheet = workbook.getSheetAt(0)
         val headers = sheet.getRow(0).map { it.toString() }.toTypedArray()
         val rows = (1..sheet.lastRowNum).map { rowNum ->
-            sheet.getRow(rowNum).map { it.toString() }.toTypedArray()
+            sheet.getRow(rowNum).map { it as Any }.toTypedArray()
         }
-        return DataFrameData(headers, rows as List<Array<Any>>)
+        return DataFrameData(headers, rows)
     }
 
     fun loadDatabase(file: File): DataFrameData {

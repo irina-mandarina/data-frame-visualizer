@@ -45,9 +45,19 @@ What's bad:
 The table component is the most flexible when it comes to visualizing dataframes. This aspect is important because it allows for interactivity and handles large datasets effectively, which are key requirements in data exploration and analysis. However, the reliance on the Kotlin Notebook environment can limit its portability.
 
 ### Recommendation
-I suggest a feature that allows exporting the Kotlin Notebook table to an HTML page with vanilla JS for minimal required setup and maximum customization.
+I suggest a feature that allows creating graphs easily from the data in the DataFrame. This would be useful for data analysis and visualization, especially when working with numerical data.
 
 Added options:
 * searching for a value in a column
-* 
+* creating graphs 
+* sorting by a column
+
+Future improvements for my solution:
+* adding more graph types
+* adding more customization options for the graphs
+* using ML to recommend graphs based on the data
+* adding more interactivity to the graphs
+* a more user-friendly interface. Right now, the UI is very basic with the main purpose of proving the concept.
+* adding more data sources like websites, different databases
+* improved visualization of hierarchical data
 

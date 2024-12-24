@@ -1,13 +1,15 @@
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.ChartPanel
+import org.jfree.chart.JFreeChart
 import org.jfree.data.category.DefaultCategoryDataset
-import org.jfree.data.general.PieDataset
+import org.jfree.data.general.DefaultPieDataset
 import java.awt.*
 import javax.swing.*
 import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableRowSorter
+import kotlin.math.sqrt
 
 data class DataFrameData(
     val columns: Array<String>,
@@ -23,6 +25,8 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
     private val loader = DataLoader()
     private val xAxisComboBox = JComboBox<String>()
     private val yAxisComboBox = JComboBox<String>()
+    private val renderGraphBtn = JButton("Render Graph")
+    private val calculateStatsBtn = JButton("Calculate Statistics")
 
     init {
         defaultCloseOperation = EXIT_ON_CLOSE
@@ -45,6 +49,7 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
         return JPanel(FlowLayout(FlowLayout.LEFT, 10, 5)).apply {
             border = EmptyBorder(5, 10, 5, 10)
             background = Color(240, 240, 240)
+            preferredSize = Dimension(800, 100)
 
             add(JButton("Load File").apply {
                 addActionListener { loadData() }
@@ -81,31 +86,68 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 }
             })
 
-           // graph panel: create graphs by selecting graph type and parameters
-            // Graph Panel Controls
-            add(JLabel("Graph Type:"))
-            val graphTypeComboBox = JComboBox(arrayOf("Bar Chart", "Line Chart", "Pie Chart"))
-            add(graphTypeComboBox)
+            // graph panel: create graphs by selecting graph type and parameters
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 10, 5)).apply {
+                add(JLabel("Graph Type:"))
+                val graphTypeComboBox = JComboBox(arrayOf("Bar Chart", "Line Chart", "Pie Chart"))
+                add(graphTypeComboBox)
 
-            add(JLabel("X-Axis:"))
-            add(xAxisComboBox)
+                add(JLabel("X-Axis:"))
+                add(xAxisComboBox)
 
-            add(JLabel("Y-Axis:"))
-            add(yAxisComboBox)
+                add(JLabel("Y-Axis:"))
+                add(yAxisComboBox)
 
-            add(JButton("Render Graph").apply {
+                add(renderGraphBtn.apply {
+                    addActionListener {
+                        renderGraph(graphTypeComboBox.selectedItem as String, xAxisComboBox.selectedItem as String, yAxisComboBox.selectedItem as String)
+                    }
+                })
+            })
+
+            // controls for calculating statistics
+            add(calculateStatsBtn.apply {
                 addActionListener {
-                    renderGraph(graphTypeComboBox.selectedItem as String, xAxisComboBox.selectedItem as String, yAxisComboBox.selectedItem as String)
+                    val selectedColumn = table.columnModel.getColumn(table.selectedColumn).headerValue.toString()
+                    val columnData = tableModel.dataVector.asSequence().map { it[table.selectedColumn] as Double }.toList()
+                    val mean = columnData.average()
+                    val median = getMedian(columnData)
+                    val mode = getMode(columnData)
+                    val variance = getVariance(columnData, mean)
+                    val stdDev = getStdDev(variance)
+                    val stats = "Mean: $mean\nMedian: $median\nMode: $mode\nVariance: $variance\nStandard Deviation: $stdDev"
+                    JOptionPane.showMessageDialog(this@DataFrameApp, stats, "Statistics for $selectedColumn", JOptionPane.INFORMATION_MESSAGE)
                 }
             })
 
+            updateControlPanel()
         }
     }
 
-    private fun updateControlPanel(
-        xAxisComboBox: JComboBox<String>,
-        yAxisComboBox: JComboBox<String>
-    ) {
+    private fun getStdDev(variance: Double) = sqrt(variance)
+
+    private fun getVariance(columnData: List<Double>, mean: Double) =
+        columnData.sumOf { (it - mean) * (it - mean) } / columnData.size
+
+    private fun getMode(columnData: List<Double>) =
+        columnData.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+
+    private fun getMedian(columnData: List<Double>) {
+        columnData.sorted()
+            .let { if (it.size % 2 == 0) (it[it.size / 2] + it[it.size / 2 - 1]) / 2.0 else it[it.size / 2] }
+    }
+
+    private fun updateControlPanel() {
+        // disable all buttons if there are no columns
+        renderGraphBtn.isEnabled = table.columnModel.columnCount > 0
+        calculateStatsBtn.isEnabled = table.columnModel.columnCount > 0
+
+        if (table.columnModel.columnCount == 0) {
+            xAxisComboBox.isEnabled = false
+            yAxisComboBox.isEnabled = false
+            return
+        }
+
         table.tableHeader.columnModel.columns.asSequence().forEach { column ->
             val columnName = table.columnModel.getColumn(column.modelIndex).headerValue.toString()
             xAxisComboBox.addItem(columnName)
@@ -170,8 +212,7 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
             }
         }
 
-        // update the comboboxes with the column names
-        updateControlPanel(xAxisComboBox, yAxisComboBox)
+        updateControlPanel()
     }
 
     private fun renderGraph(graphType: String, xAxis: String, yAxis: String) {
@@ -182,21 +223,28 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 addValue(yValue, "Data", xValue)
             }
         }
-        val chart = when (graphType) {
-            "Bar Chart" -> ChartFactory.createBarChart("Graph", xAxis, yAxis, dataset)
-            "Line Chart" -> ChartFactory.createLineChart("Graph", xAxis, yAxis, dataset)
-            "Pie Chart" -> ChartFactory.createPieChart("Graph", dataset as PieDataset<*>)
-            else -> null
+        lateinit var chart: JFreeChart
+
+        if (graphType == "Bar Chart") {
+            chart = ChartFactory.createBarChart("Graph", xAxis, yAxis, dataset)
+        } else if (graphType == "Line Chart") {
+            chart = ChartFactory.createLineChart("Graph", xAxis, yAxis, dataset)
+        } else if (graphType == "Pie Chart") {
+            val pieDataset =  DefaultPieDataset<String>()
+            for (row in 0 until tableModel.rowCount) {
+                val xValue = tableModel.getValueAt(row, tableModel.findColumn(xAxis)).toString()
+                val yValue = tableModel.getValueAt(row, tableModel.findColumn(yAxis)).toString().toDouble()
+                pieDataset.setValue(xValue, yValue)
+            }
+            chart = ChartFactory.createPieChart("Graph", pieDataset, true, true, false)
         }
 
-        if (chart != null) {
-            val chartPanel = ChartPanel(chart)
-            JFrame("Graph").apply {
-                contentPane = chartPanel
-                defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-                size = Dimension(800, 600)
-                isVisible = true
-            }
+        val chartPanel = ChartPanel(chart)
+        JFrame("Graph").apply {
+            contentPane = chartPanel
+            defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+            size = Dimension(800, 600)
+            isVisible = true
         }
     }
 
