@@ -1,3 +1,7 @@
+import org.jfree.chart.ChartFactory
+import org.jfree.chart.ChartPanel
+import org.jfree.data.category.DefaultCategoryDataset
+import org.jfree.data.general.PieDataset
 import java.awt.*
 import javax.swing.*
 import javax.swing.border.EmptyBorder
@@ -17,6 +21,8 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
     private val table = JTable(tableModel)
     private val rowSorter = TableRowSorter(tableModel)
     private val loader = DataLoader()
+    private val xAxisComboBox = JComboBox<String>()
+    private val yAxisComboBox = JComboBox<String>()
 
     init {
         defaultCloseOperation = EXIT_ON_CLOSE
@@ -75,6 +81,35 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 }
             })
 
+           // graph panel: create graphs by selecting graph type and parameters
+            // Graph Panel Controls
+            add(JLabel("Graph Type:"))
+            val graphTypeComboBox = JComboBox(arrayOf("Bar Chart", "Line Chart", "Pie Chart"))
+            add(graphTypeComboBox)
+
+            add(JLabel("X-Axis:"))
+            add(xAxisComboBox)
+
+            add(JLabel("Y-Axis:"))
+            add(yAxisComboBox)
+
+            add(JButton("Render Graph").apply {
+                addActionListener {
+                    renderGraph(graphTypeComboBox.selectedItem as String, xAxisComboBox.selectedItem as String, yAxisComboBox.selectedItem as String)
+                }
+            })
+
+        }
+    }
+
+    private fun updateControlPanel(
+        xAxisComboBox: JComboBox<String>,
+        yAxisComboBox: JComboBox<String>
+    ) {
+        table.tableHeader.columnModel.columns.asSequence().forEach { column ->
+            val columnName = table.columnModel.getColumn(column.modelIndex).headerValue.toString()
+            xAxisComboBox.addItem(columnName)
+            yAxisComboBox.addItem(columnName)
         }
     }
 
@@ -132,6 +167,35 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
             } catch (e: Exception) {
                 showError("Error loading files: ${e.message}")
                 println(e)
+            }
+        }
+
+        // update the comboboxes with the column names
+        updateControlPanel(xAxisComboBox, yAxisComboBox)
+    }
+
+    private fun renderGraph(graphType: String, xAxis: String, yAxis: String) {
+        val dataset = DefaultCategoryDataset().apply {
+            for (row in 0 until tableModel.rowCount) {
+                val xValue = tableModel.getValueAt(row, tableModel.findColumn(xAxis)).toString()
+                val yValue = tableModel.getValueAt(row, tableModel.findColumn(yAxis)).toString().toDouble()
+                addValue(yValue, "Data", xValue)
+            }
+        }
+        val chart = when (graphType) {
+            "Bar Chart" -> ChartFactory.createBarChart("Graph", xAxis, yAxis, dataset)
+            "Line Chart" -> ChartFactory.createLineChart("Graph", xAxis, yAxis, dataset)
+            "Pie Chart" -> ChartFactory.createPieChart("Graph", dataset as PieDataset<*>)
+            else -> null
+        }
+
+        if (chart != null) {
+            val chartPanel = ChartPanel(chart)
+            JFrame("Graph").apply {
+                contentPane = chartPanel
+                defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+                size = Dimension(800, 600)
+                isVisible = true
             }
         }
     }
