@@ -26,6 +26,7 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
     private val xAxisComboBox = JComboBox<String>()
     private val yAxisComboBox = JComboBox<String>()
     private val renderGraphBtn = JButton("Render Graph")
+    private val statsComboBox = JComboBox<String>()
     private val calculateStatsBtn = JButton("Calculate Statistics")
 
     init {
@@ -106,18 +107,30 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
             })
 
             // controls for calculating statistics
-            add(calculateStatsBtn.apply {
-                addActionListener {
-                    val selectedColumn = table.columnModel.getColumn(table.selectedColumn).headerValue.toString()
-                    val columnData = tableModel.dataVector.asSequence().map { it[table.selectedColumn] as Double }.toList()
-                    val mean = columnData.average()
-                    val median = getMedian(columnData)
-                    val mode = getMode(columnData)
-                    val variance = getVariance(columnData, mean)
-                    val stdDev = getStdDev(variance)
-                    val stats = "Mean: $mean\nMedian: $median\nMode: $mode\nVariance: $variance\nStandard Deviation: $stdDev"
-                    JOptionPane.showMessageDialog(this@DataFrameApp, stats, "Statistics for $selectedColumn", JOptionPane.INFORMATION_MESSAGE)
-                }
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 10, 5)).apply {
+                add(JLabel("Column:"))
+                add(statsComboBox)
+
+                add(calculateStatsBtn.apply {
+                    addActionListener {
+                        val columnData = mutableListOf<Double>()
+                        for (row in 0 until tableModel.rowCount) {
+                            try {
+                                columnData.add(tableModel.getValueAt(row, statsComboBox.selectedIndex).toString().toDouble())
+                                } catch (e: NumberFormatException) {
+                                    showError("Column must contain only numeric values")
+                                    return@addActionListener
+                                }
+                        }
+                        val mean = columnData.average()
+                        val median = getMedian(columnData)
+                        val mode = getMode(columnData)
+                        val variance = getVariance(columnData, mean)
+                        val stdDev = getStdDev(variance)
+                        val stats = "Mean: %.2f\nMedian: %.2f\nMode: %.2f\nVariance: %.2f\nStandard Deviation: %.2f".format(mean, median, mode, variance, stdDev)
+                        JOptionPane.showMessageDialog(this@DataFrameApp, stats, "Statistics for ${statsComboBox.selectedItem}", JOptionPane.INFORMATION_MESSAGE)
+                    }
+                })
             })
 
             updateControlPanel()
@@ -132,26 +145,31 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
     private fun getMode(columnData: List<Double>) =
         columnData.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
 
-    private fun getMedian(columnData: List<Double>) {
-        columnData.sorted()
-            .let { if (it.size % 2 == 0) (it[it.size / 2] + it[it.size / 2 - 1]) / 2.0 else it[it.size / 2] }
+    private fun getMedian(columnData: List<Double>): Double {
+        // sort the data and find the middle element
+        return columnData.sorted()
+            .let {
+                if (it.size % 2 == 0)
+                        (it[it.size / 2] + it[it.size / 2 - 1]) / 2.0
+                else
+                    it[it.size / 2]
+            }
     }
 
     private fun updateControlPanel() {
         // disable all buttons if there are no columns
-        renderGraphBtn.isEnabled = table.columnModel.columnCount > 0
-        calculateStatsBtn.isEnabled = table.columnModel.columnCount > 0
-
-        if (table.columnModel.columnCount == 0) {
-            xAxisComboBox.isEnabled = false
-            yAxisComboBox.isEnabled = false
-            return
-        }
+        val enabled = table.columnModel.columnCount > 0
+        renderGraphBtn.isEnabled = enabled
+        calculateStatsBtn.isEnabled = enabled
+        xAxisComboBox.isEnabled = enabled
+        yAxisComboBox.isEnabled = enabled
+        statsComboBox.isEnabled = enabled
 
         table.tableHeader.columnModel.columns.asSequence().forEach { column ->
             val columnName = table.columnModel.getColumn(column.modelIndex).headerValue.toString()
             xAxisComboBox.addItem(columnName)
             yAxisComboBox.addItem(columnName)
+            statsComboBox.addItem(columnName)
         }
     }
 

@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="554279fc-cc12-416c-8cbb-8c32e276d070" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/DataFrameApp.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/DataFrameApp.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/DataLoader.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/DataLoader.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
