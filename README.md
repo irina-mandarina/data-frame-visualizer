@@ -51,6 +51,7 @@ Added options:
 * searching for a value in a column
 * creating graphs 
 * sorting by a column
+* viewing statistics for a column: mean, median, standard deviation, etc.
 
 Future improvements for my solution:
 * adding more graph types
@@ -61,3 +62,9 @@ Future improvements for my solution:
 * adding more data sources like websites, different databases
 * improved visualization of hierarchical data
 
+
+### Notes
+* The solution is a proof of concept and is not meant to be a full-fledged application.
+* I have added some sample files for testing the solution.
+
+[//]: # (End of README.md)
