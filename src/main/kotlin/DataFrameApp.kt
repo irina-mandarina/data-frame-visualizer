@@ -157,6 +157,10 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
     }
 
     private fun updateControlPanel() {
+        xAxisComboBox.removeAllItems()
+        yAxisComboBox.removeAllItems()
+        statsComboBox.removeAllItems()
+
         // disable all buttons if there are no columns
         val enabled = table.columnModel.columnCount > 0
         renderGraphBtn.isEnabled = enabled
@@ -220,6 +224,7 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 if (dataFrames.all { it.columns.contentEquals(headers) }) {
                     val combinedRows = dataFrames.flatMap { it.rows }
                     updateTable(DataFrameData(headers, combinedRows))
+                    updateControlPanel()
                 } else {
                     showError("Headers do not match across files. Displaying the first file only.")
                     updateTable(dataFrames.first())
@@ -229,15 +234,19 @@ class DataFrameApp : JFrame("DataFrame Viewer") {
                 println(e)
             }
         }
-
-        updateControlPanel()
     }
 
     private fun renderGraph(graphType: String, xAxis: String, yAxis: String) {
         val dataset = DefaultCategoryDataset().apply {
             for (row in 0 until tableModel.rowCount) {
                 val xValue = tableModel.getValueAt(row, tableModel.findColumn(xAxis)).toString()
-                val yValue = tableModel.getValueAt(row, tableModel.findColumn(yAxis)).toString().toDouble()
+                var yValue: Double
+                try {
+                    yValue = tableModel.getValueAt(row, tableModel.findColumn(yAxis)).toString().toDouble()
+                } catch (e: NumberFormatException) {
+                    showError("Y-Axis must contain only numeric values")
+                    return
+                }
                 addValue(yValue, "Data", xValue)
             }
         }
